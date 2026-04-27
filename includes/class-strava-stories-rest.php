@@ -71,6 +71,19 @@ class Strava_Stories_Rest {
 			);
 		}
 
+		$drafted = self::drafted_activity_ids();
+		if ( ! empty( $drafted ) ) {
+			$activities = array_values(
+				array_filter(
+					$activities,
+					static function ( $a ) use ( $drafted ) {
+						$id = isset( $a['id'] ) && is_scalar( $a['id'] ) ? (string) $a['id'] : '';
+						return $id === '' || ! isset( $drafted[ $id ] );
+					}
+				)
+			);
+		}
+
 		// Strava's listing endpoint sometimes omits `embed_token`. Backfill via
 		// the detail endpoint for activities without one, capped to avoid a
 		// burst of API calls — the rest fall back to the styled card.
@@ -259,6 +272,33 @@ class Strava_Stories_Rest {
 			'at'                => (int) ( $a['at'] ?? 0 ),
 			'stats'             => $stats,
 		);
+	}
+
+	/**
+	 * Map of Strava activity IDs that already have an associated post.
+	 *
+	 * Once a post (draft or published) exists for an activity, the widget
+	 * shouldn't offer it again — the author already started a story for it.
+	 *
+	 * @return array<string, true>
+	 */
+	private static function drafted_activity_ids(): array {
+		global $wpdb;
+		$rows = $wpdb->get_col(
+			"SELECT DISTINCT pm.meta_value
+			 FROM {$wpdb->postmeta} pm
+			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			 WHERE pm.meta_key = '_strava_stories_activity'
+			   AND p.post_status NOT IN ( 'trash', 'auto-draft' )"
+		);
+		$ids = array();
+		foreach ( (array) $rows as $row ) {
+			$id = is_scalar( $row ) ? (string) $row : '';
+			if ( $id !== '' ) {
+				$ids[ $id ] = true;
+			}
+		}
+		return $ids;
 	}
 
 	private static function sport_label( string $type ): string {
