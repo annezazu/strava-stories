@@ -1,0 +1,292 @@
+/**
+ * Strava Stories dashboard widget styles.
+ * Inherits core .postbox chrome; only styles internal structure.
+ */
+
+.strava-stories-widget {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.strava-stories-widget__empty {
+	text-align: center;
+	padding: 16px 8px;
+	color: #50575e;
+}
+
+.strava-stories-widget__viewport {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 8px;
+}
+
+.strava-stories-widget__nav {
+	background: transparent;
+	border: 1px solid #dcdcde;
+	border-radius: 2px;
+	width: 28px;
+	height: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	color: #1e1e1e;
+	transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.strava-stories-widget__nav:hover:not([disabled]) {
+	background: #f0f0f1;
+	border-color: #1e1e1e;
+}
+
+.strava-stories-widget__nav:focus-visible:not([disabled]) {
+	outline: 2px solid #2271b1;
+	outline-offset: 0;
+	border-color: transparent;
+}
+
+.strava-stories-widget__nav[disabled] {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.strava-stories-widget__nav .dashicons {
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+}
+
+.strava-stories-widget__stage {
+	min-height: 200px;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.strava-stories-widget__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 200px;
+}
+
+.strava-stories-widget__loading .spinner {
+	float: none;
+	margin: 0;
+}
+
+.strava-stories-widget__error {
+	margin: 0;
+	padding: 8px 12px;
+	color: #8a2424;
+	background: #fbeaea;
+	border-left: 4px solid #d63638;
+	border-radius: 3px;
+	font-size: 13px;
+}
+
+.strava-stories-widget__muted {
+	color: #787c82;
+	font-size: 13px;
+	text-align: center;
+	margin: 24px 0;
+}
+
+.strava-stories-widget__card {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	padding-top: 12px;
+	border-top: 2px solid #fc4c02; /* subtle Strava-brand accent */
+}
+
+.strava-stories-widget__card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.strava-stories-widget__title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: #1e1e1e;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.strava-stories-widget__title a {
+	color: #1d2327;
+	text-decoration: none;
+}
+
+.strava-stories-widget__title a:hover,
+.strava-stories-widget__title a:focus {
+	color: #2271b1;
+	text-decoration: underline;
+}
+
+.strava-stories-widget__date {
+	flex: 0 0 auto;
+	font-size: 12px;
+	color: #787c82;
+}
+
+.strava-stories-widget__embed {
+	position: relative;
+	width: 100%;
+	border: 1px solid #f0f0f1;
+	border-radius: 4px;
+	overflow: hidden;
+	background: #fafafa;
+}
+
+.strava-stories-widget__embed iframe {
+	display: block;
+	width: 100%;
+	border: 0;
+}
+
+.strava-stories-widget__embed--fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 120px;
+	color: #50575e;
+	font-size: 13px;
+}
+
+.strava-stories-widget__embed--fallback .dashicons {
+	color: #fc4c02; /* Strava brand orange */
+}
+
+.strava-stories-widget__embed--private {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 24px 16px;
+	min-height: 180px;
+	text-align: center;
+	color: #50575e;
+}
+
+.strava-stories-widget__embed--private .dashicons {
+	font-size: 28px;
+	width: 28px;
+	height: 28px;
+	color: #787c82;
+}
+
+.strava-stories-widget__private-heading {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.strava-stories-widget__private-note {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.45;
+	max-width: 360px;
+	color: #50575e;
+}
+
+.strava-stories-widget__embed--private .button {
+	margin-top: 6px;
+}
+
+.strava-stories-widget__type {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	color: #1e1e1e;
+	background: #f0f0f1;
+	border-radius: 2px;
+	align-self: flex-start;
+}
+
+.strava-stories-widget__type-dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #fc4c02;
+}
+
+.strava-stories-widget__stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 110px, 1fr ) );
+	gap: 4px 16px;
+	margin: 0;
+	padding: 12px;
+	background: #f6f7f7;
+	border-radius: 2px;
+}
+
+.strava-stories-widget__stats dt {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #757575;
+	margin: 0;
+}
+
+.strava-stories-widget__stats dd {
+	margin: 0 0 4px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1e1e1e;
+}
+
+.strava-stories-widget__description {
+	margin: 0;
+	color: #3c434a;
+	font-size: 13px;
+	line-height: 1.45;
+	border-left: 3px solid #f0f0f1;
+	padding-left: 10px;
+}
+
+.strava-stories-widget__footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.strava-stories-widget__pager {
+	font-size: 12px;
+	color: #787c82;
+}
+
+/* Admin page status pills */
+.strava-stories-status {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+}
+.strava-stories-status--connected {
+	background: #edfaef;
+	color: #007017;
+}
+.strava-stories-status--disconnected {
+	background: #f0f0f1;
+	color: #50575e;
+}
