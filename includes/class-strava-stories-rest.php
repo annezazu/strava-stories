@@ -63,7 +63,7 @@ class Strava_Stories_Rest {
 			return new WP_REST_Response( array( 'ok' => false, 'error' => 'not_connected' ), 403 );
 		}
 
-		$activities = $client->get_recent_activities( $user_id, 10 );
+		$activities = $client->get_recent_activities( $user_id, 5 );
 		if ( is_wp_error( $activities ) ) {
 			return new WP_REST_Response(
 				array( 'ok' => false, 'error' => $activities->get_error_message() ),
