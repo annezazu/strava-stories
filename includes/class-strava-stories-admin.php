@@ -111,7 +111,7 @@ class Strava_Stories_Admin {
 
 			<table class="widefat striped" style="max-width:720px;">
 				<tbody>
-					<tr>
+					<tr data-strava-stories-row="connection">
 						<td><strong><?php esc_html_e( 'Status', 'strava-stories' ); ?></strong></td>
 						<td>
 							<?php if ( ! empty( $status['connected'] ) ) : ?>
@@ -142,6 +142,7 @@ class Strava_Stories_Admin {
 							<?php else : ?>
 								<a class="button button-primary"
 									href="<?php echo esc_url( $connect_url ); ?>"
+									data-connecting-label="<?php esc_attr_e( 'Connecting…', 'strava-stories' ); ?>"
 									<?php if ( ! $configured ) echo 'aria-disabled="true" style="pointer-events:none;opacity:.5"'; ?>
 								>
 									<?php esc_html_e( 'Connect Strava', 'strava-stories' ); ?>
