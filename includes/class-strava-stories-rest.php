@@ -277,8 +277,15 @@ class Strava_Stories_Rest {
 	/**
 	 * Map of Strava activity IDs that already have an associated post.
 	 *
-	 * Once a post (draft or published) exists for an activity, the widget
-	 * shouldn't offer it again — the author already started a story for it.
+	 * Once a post exists for an activity — draft, published, *or trashed* —
+	 * the widget shouldn't offer that activity again. Trashed posts are
+	 * intentionally included: if an author started a story and then trashed
+	 * it, having the activity reappear in the widget is the "folks get
+	 * confused" case from issue #5. To bring an activity back, the author
+	 * permanently deletes the trashed post.
+	 *
+	 * `auto-draft` is excluded because WP can create speculative auto-drafts
+	 * that the author never intended to keep.
 	 *
 	 * @return array<string, true>
 	 */
@@ -289,7 +296,7 @@ class Strava_Stories_Rest {
 			 FROM {$wpdb->postmeta} pm
 			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
 			 WHERE pm.meta_key = '_strava_stories_activity'
-			   AND p.post_status NOT IN ( 'trash', 'auto-draft' )"
+			   AND p.post_status != 'auto-draft'"
 		);
 		$ids = array();
 		foreach ( (array) $rows as $row ) {
