@@ -114,4 +114,14 @@ function strava_stories_enqueue_assets( string $hook ): void {
 			true
 		);
 	}
+
+	if ( $is_settings ) {
+		wp_enqueue_script(
+			'strava-stories-connect-ux',
+			STRAVA_STORIES_URL . 'assets/strava-stories-connect-ux.js',
+			array(),
+			STRAVA_STORIES_VERSION,
+			true
+		);
+	}
 }
