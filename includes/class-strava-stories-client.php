@@ -251,6 +251,44 @@ class Strava_Stories_Client {
 	}
 
 	/**
+	 * Fetch photos for an activity, normalized to { url, caption }.
+	 *
+	 * `photo_sources=true` makes Strava include native (Strava-uploaded) photos
+	 * alongside Instagram-sourced ones. URLs are CloudFront-signed and expire,
+	 * so callers should sideload into the media library if persistence matters.
+	 *
+	 * @return array<int, array{url:string, caption:string}>|WP_Error
+	 */
+	public function get_activity_photos( int $user_id, string $activity_id, int $size = 2048 ) {
+		if ( ! ctype_digit( $activity_id ) ) {
+			return new WP_Error( 'strava_stories_invalid_activity', __( 'Invalid activity ID.', 'strava-stories' ) );
+		}
+		$url     = 'https://www.strava.com/api/v3/activities/' . $activity_id . '/photos?size=' . (int) $size . '&photo_sources=true';
+		$photos  = $this->authed_get( $url, $user_id );
+		if ( is_wp_error( $photos ) ) {
+			return $photos;
+		}
+		if ( ! is_array( $photos ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $photos as $p ) {
+			if ( ! is_array( $p ) || empty( $p['urls'] ) || ! is_array( $p['urls'] ) ) {
+				continue;
+			}
+			$photo_url = (string) ( $p['urls'][ (string) $size ] ?? end( $p['urls'] ) );
+			if ( $photo_url === '' ) {
+				continue;
+			}
+			$out[] = array(
+				'url'     => $photo_url,
+				'caption' => (string) ( $p['caption'] ?? '' ),
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * @return array{client_id:string, client_secret:string}|null
 	 */
 	public function get_app_credentials(): ?array {

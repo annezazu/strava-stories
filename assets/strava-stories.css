@@ -227,6 +227,16 @@
 	background: #fc4c02;
 }
 
+.strava-stories-widget__map {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-height: 140px;
+	background: #f6f7f7;
+	border-radius: 2px;
+	margin: 0 0 8px;
+}
+
 .strava-stories-widget__stats {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 110px, 1fr ) );
