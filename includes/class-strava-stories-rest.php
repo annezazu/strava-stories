@@ -149,23 +149,19 @@ class Strava_Stories_Rest {
 			? $presented['name']
 			: sprintf( /* translators: %s: sport label, e.g. "Run". */ __( 'A recent %s', 'strava-stories' ), $presented['sport_label'] );
 
-		$body = "<!-- wp:heading -->\n<h2>" . esc_html( $title ) . "</h2>\n<!-- /wp:heading -->\n\n";
-
-		// Strava embed via their official placeholder + embed.js. This is the
-		// pattern Strava's "Share → Embed" dialog produces; it works on any
-		// domain because the actual iframe is served from strava-embeds.com.
-		// Direct www.strava.com iframes are blocked by X-Frame-Options.
-
-		$lines = array();
-		foreach ( $presented['stats'] as $stat ) {
-			$lines[] = '<li><strong>' . esc_html( $stat['label'] ) . ':</strong> ' . esc_html( $stat['value'] ) . '</li>';
-		}
-		if ( ! empty( $lines ) ) {
-			$body .= "<!-- wp:list -->\n<ul>\n" . implode( "\n", $lines ) . "\n</ul>\n<!-- /wp:list -->\n\n";
-		}
+		$body = self::photo_blocks_for_activity( $client, $user_id, $activity_id, $title );
 
 		if ( $presented['description'] !== '' ) {
 			$body .= "<!-- wp:paragraph -->\n<p>" . esc_html( $presented['description'] ) . "</p>\n<!-- /wp:paragraph -->\n\n";
+		}
+
+		$draft_stats = self::draft_stats( $activity );
+		if ( ! empty( $draft_stats ) ) {
+			$items = '';
+			foreach ( $draft_stats as $line ) {
+				$items .= '<li>' . esc_html( $line ) . "</li>\n";
+			}
+			$body .= "<!-- wp:list -->\n<ul>\n" . $items . "</ul>\n<!-- /wp:list -->\n\n";
 		}
 
 		$body .= "<!-- wp:paragraph -->\n<p><a href=\"" . esc_url( $presented['url'] ) . "\">"
@@ -277,15 +273,9 @@ class Strava_Stories_Rest {
 	/**
 	 * Map of Strava activity IDs that already have an associated post.
 	 *
-	 * Once a post exists for an activity — draft, published, *or trashed* —
-	 * the widget shouldn't offer that activity again. Trashed posts are
-	 * intentionally included: if an author started a story and then trashed
-	 * it, having the activity reappear in the widget is the "folks get
-	 * confused" case from issue #5. To bring an activity back, the author
-	 * permanently deletes the trashed post.
-	 *
-	 * `auto-draft` is excluded because WP can create speculative auto-drafts
-	 * that the author never intended to keep.
+	 * Posts in 'auto-draft' and 'trash' don't count: auto-drafts are
+	 * speculative (WP creates them on Add New), and trashing is the user
+	 * explicitly releasing the activity for re-drafting.
 	 *
 	 * @return array<string, true>
 	 */
@@ -296,7 +286,7 @@ class Strava_Stories_Rest {
 			 FROM {$wpdb->postmeta} pm
 			 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
 			 WHERE pm.meta_key = '_strava_stories_activity'
-			   AND p.post_status != 'auto-draft'"
+			   AND p.post_status NOT IN ( 'auto-draft', 'trash' )"
 		);
 		$ids = array();
 		foreach ( (array) $rows as $row ) {
@@ -367,6 +357,51 @@ class Strava_Stories_Rest {
 		return sprintf( '%d:%02d /%s', $min, $sec, $metric ? 'km' : 'mi' );
 	}
 
+	/**
+	 * Stat lines for the draft post — bare values, no labels except for
+	 * elevation which carries its own suffix.
+	 *
+	 * @param array<string, mixed> $a
+	 * @return array<int, string>
+	 */
+	private static function draft_stats( array $a ): array {
+		$is_metric  = self::is_metric_locale();
+		$distance_m = (float) ( $a['distance_m'] ?? 0 );
+		$moving_s   = (int) ( $a['moving_time_s'] ?? 0 );
+		$elev_m     = (float) ( $a['total_elevation_m'] ?? 0 );
+
+		$out = array();
+		if ( $distance_m > 0 ) {
+			$out[] = self::format_distance( $distance_m, $is_metric );
+		}
+		if ( $moving_s > 0 ) {
+			$out[] = self::format_duration_human( $moving_s );
+		}
+		if ( $elev_m > 0 ) {
+			$out[] = sprintf(
+				/* translators: %s: elevation with units, e.g. "2259 ft". */
+				__( '%s elev gain', 'strava-stories' ),
+				self::format_elevation( $elev_m, $is_metric )
+			);
+		}
+		return $out;
+	}
+
+	// Human-friendly duration: largest two non-zero units, or just seconds for
+	// sub-minute durations. "2 hr 22 mins", "22 mins 4 secs", "47 secs".
+	private static function format_duration_human( int $seconds ): string {
+		$h = intdiv( $seconds, 3600 );
+		$m = intdiv( $seconds % 3600, 60 );
+		$s = $seconds % 60;
+
+		$units = array();
+		if ( $h > 0 ) { $units[] = $h . ' hr'; }
+		if ( $m > 0 ) { $units[] = $m . ( $m === 1 ? ' min' : ' mins' ); }
+		if ( $s > 0 || empty( $units ) ) { $units[] = $s . ( $s === 1 ? ' sec' : ' secs' ); }
+
+		return implode( ' ', array_slice( $units, 0, 2 ) );
+	}
+
 	private static function format_duration( int $seconds ): string {
 		$h = (int) floor( $seconds / 3600 );
 		$m = (int) floor( ( $seconds % 3600 ) / 60 );
@@ -375,4 +410,116 @@ class Strava_Stories_Rest {
 			? sprintf( '%d:%02d:%02d', $h, $m, $s )
 			: sprintf( '%d:%02d', $m, $s );
 	}
+
+	/**
+	 * Fetch and sideload activity photos, returning serialized image / gallery
+	 * block markup ready for splicing into post_content. Empty string when the
+	 * activity has no photos or all sideloads fail.
+	 */
+	private static function photo_blocks_for_activity( Strava_Stories_Client $client, int $user_id, string $activity_id, string $alt_text ): string {
+		$photos = $client->get_activity_photos( $user_id, $activity_id );
+		if ( is_wp_error( $photos ) || ! is_array( $photos ) || empty( $photos ) ) {
+			return '';
+		}
+
+		// Strava returns up to 100 photos; cap to keep the click responsive.
+		$photos = array_slice( $photos, 0, 12 );
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachments = array();
+		foreach ( $photos as $p ) {
+			$id = self::sideload_photo( (string) $p['url'], (string) ( $p['caption'] ?? '' ), $alt_text );
+			if ( is_wp_error( $id ) || $id === 0 ) {
+				continue;
+			}
+			$attachments[] = array(
+				'id'      => $id,
+				'url'     => (string) wp_get_attachment_url( $id ),
+				'caption' => (string) ( $p['caption'] ?? '' ),
+			);
+		}
+
+		if ( empty( $attachments ) ) {
+			return '';
+		}
+
+		if ( count( $attachments ) === 1 ) {
+			return self::image_block( $attachments[0] ) . "\n";
+		}
+
+		$inner = '';
+		$ids   = array();
+		foreach ( $attachments as $a ) {
+			$inner .= self::image_block( $a );
+			$ids[] = (int) $a['id'];
+		}
+		return sprintf(
+			"<!-- wp:gallery {\"linkTo\":\"none\",\"ids\":[%s]} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">%s</figure>\n<!-- /wp:gallery -->\n\n",
+			implode( ',', $ids ),
+			$inner
+		);
+	}
+
+	/**
+	 * @param array{id:int, url:string, caption:string} $a
+	 */
+	private static function image_block( array $a ): string {
+		$caption_html = $a['caption'] !== ''
+			? '<figcaption class="wp-element-caption">' . esc_html( $a['caption'] ) . '</figcaption>'
+			: '';
+		return sprintf(
+			"<!-- wp:image {\"id\":%d,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"%s\" alt=\"%s\" class=\"wp-image-%d\"/>%s</figure>\n<!-- /wp:image -->\n\n",
+			$a['id'],
+			esc_url( $a['url'] ),
+			esc_attr( $a['caption'] ),
+			$a['id'],
+			$caption_html
+		);
+	}
+
+	/**
+	 * Download a remote photo and attach it to the media library.
+	 *
+	 * @return int|WP_Error Attachment ID on success.
+	 */
+	private static function sideload_photo( string $url, string $caption, string $alt_text ) {
+		if ( $url === '' ) {
+			return 0;
+		}
+		$tmp = download_url( $url, 30 );
+		if ( is_wp_error( $tmp ) ) {
+			return $tmp;
+		}
+
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$name = basename( $path );
+		// Strava CloudFront URLs sometimes lack an extension; sniff and append.
+		if ( ! preg_match( '/\.(jpe?g|png|gif|webp|heic|heif)$/i', $name ) ) {
+			$mime = mime_content_type( $tmp ) ?: 'image/jpeg';
+			$ext  = array(
+				'image/jpeg' => '.jpg',
+				'image/png'  => '.png',
+				'image/gif'  => '.gif',
+				'image/webp' => '.webp',
+			)[ $mime ] ?? '.jpg';
+			$name = ( $name !== '' ? $name : 'strava-photo' ) . $ext;
+		}
+
+		$file_array = array( 'name' => $name, 'tmp_name' => $tmp );
+		$id         = media_handle_sideload( $file_array, 0 );
+		if ( is_wp_error( $id ) ) {
+			@unlink( $tmp );
+			return $id;
+		}
+
+		if ( $caption !== '' ) {
+			wp_update_post( array( 'ID' => $id, 'post_excerpt' => $caption ) );
+		}
+		update_post_meta( $id, '_wp_attachment_image_alt', $alt_text );
+		return (int) $id;
+	}
+
 }
