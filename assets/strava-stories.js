@@ -192,6 +192,7 @@
 		dismiss.type = 'button';
 		dismiss.className = 'strava-stories-widget__dismiss';
 		dismiss.setAttribute( 'aria-label', __( 'Hide this activity' ) );
+		dismiss.title = __( 'Hide this activity' );
 		dismiss.innerHTML = '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
 		dismiss.addEventListener( 'click', function () { hideActivity( activity ); } );
 		card.appendChild( dismiss );
