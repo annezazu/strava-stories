@@ -285,6 +285,43 @@
 	color: #787c82;
 }
 
+.strava-stories-widget__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.strava-stories-widget__hide {
+	color: #50575e;
+	text-decoration: none;
+}
+
+.strava-stories-widget__hide:hover:not([disabled]),
+.strava-stories-widget__hide:focus:not([disabled]) {
+	color: #1e1e1e;
+	text-decoration: underline;
+}
+
+.strava-stories-widget__notice {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: #f6f7f7;
+	border-left: 4px solid #2271b1;
+	border-radius: 3px;
+	font-size: 12px;
+	color: #1e1e1e;
+}
+
+.strava-stories-widget__notice-text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* Admin page status pills */
 .strava-stories-status {
 	display: inline-block;

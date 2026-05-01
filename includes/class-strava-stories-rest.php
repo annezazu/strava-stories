@@ -17,6 +17,8 @@ class Strava_Stories_Rest {
 
 	public const NAMESPACE = 'strava-stories/v1';
 
+	private const IGNORED_META_KEY = '_strava_stories_ignored';
+
 	public static function boot(): void {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 	}
@@ -29,6 +31,40 @@ class Strava_Stories_Rest {
 				'methods'             => 'GET',
 				'callback'            => array( __CLASS__, 'list_activities' ),
 				'permission_callback' => array( __CLASS__, 'can_use' ),
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE,
+			'/ignore',
+			array(
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( __CLASS__, 'ignore_activity' ),
+					'permission_callback' => array( __CLASS__, 'can_use' ),
+					'args'                => array(
+						'activity_id' => array(
+							'required'          => true,
+							'sanitize_callback' => static function ( $value ) {
+								$s = is_scalar( $value ) ? (string) $value : '';
+								return ctype_digit( $s ) ? $s : '';
+							},
+						),
+					),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'callback'            => array( __CLASS__, 'unignore_activity' ),
+					'permission_callback' => array( __CLASS__, 'can_use' ),
+					'args'                => array(
+						'activity_id' => array(
+							'required'          => true,
+							'sanitize_callback' => static function ( $value ) {
+								$s = is_scalar( $value ) ? (string) $value : '';
+								return ctype_digit( $s ) ? $s : '';
+							},
+						),
+					),
+				),
 			)
 		);
 		register_rest_route(
@@ -76,13 +112,15 @@ class Strava_Stories_Rest {
 		}
 
 		$drafted = self::drafted_activity_ids();
-		if ( ! empty( $drafted ) ) {
+		$ignored = self::ignored_activity_ids( $user_id );
+		$excluded = $drafted + $ignored;
+		if ( ! empty( $excluded ) ) {
 			$activities = array_values(
 				array_filter(
 					$activities,
-					static function ( $a ) use ( $drafted ) {
+					static function ( $a ) use ( $excluded ) {
 						$id = isset( $a['id'] ) && is_scalar( $a['id'] ) ? (string) $a['id'] : '';
-						return $id === '' || ! isset( $drafted[ $id ] );
+						return $id === '' || ! isset( $excluded[ $id ] );
 					}
 				)
 			);
@@ -274,6 +312,49 @@ class Strava_Stories_Rest {
 			'at'                => (int) ( $a['at'] ?? 0 ),
 			'stats'             => $stats,
 		);
+	}
+
+	public static function ignore_activity( WP_REST_Request $request ): WP_REST_Response {
+		$activity_id = (string) $request->get_param( 'activity_id' );
+		if ( $activity_id === '' || ! ctype_digit( $activity_id ) ) {
+			return new WP_REST_Response( array( 'ok' => false, 'error' => 'invalid_activity' ), 400 );
+		}
+		$user_id = get_current_user_id();
+		$ids     = self::ignored_activity_ids( $user_id );
+		$ids[ $activity_id ] = true;
+		update_user_meta( $user_id, self::IGNORED_META_KEY, array_keys( $ids ) );
+		return new WP_REST_Response( array( 'ok' => true ), 200 );
+	}
+
+	public static function unignore_activity( WP_REST_Request $request ): WP_REST_Response {
+		$activity_id = (string) $request->get_param( 'activity_id' );
+		if ( $activity_id === '' || ! ctype_digit( $activity_id ) ) {
+			return new WP_REST_Response( array( 'ok' => false, 'error' => 'invalid_activity' ), 400 );
+		}
+		$user_id = get_current_user_id();
+		$ids     = self::ignored_activity_ids( $user_id );
+		unset( $ids[ $activity_id ] );
+		if ( empty( $ids ) ) {
+			delete_user_meta( $user_id, self::IGNORED_META_KEY );
+		} else {
+			update_user_meta( $user_id, self::IGNORED_META_KEY, array_keys( $ids ) );
+		}
+		return new WP_REST_Response( array( 'ok' => true ), 200 );
+	}
+
+	/**
+	 * @return array<string, true>
+	 */
+	private static function ignored_activity_ids( int $user_id ): array {
+		$raw = get_user_meta( $user_id, self::IGNORED_META_KEY, true );
+		$ids = array();
+		foreach ( (array) $raw as $value ) {
+			$id = is_scalar( $value ) ? (string) $value : '';
+			if ( $id !== '' && ctype_digit( $id ) ) {
+				$ids[ $id ] = true;
+			}
+		}
+		return $ids;
 	}
 
 	/**
