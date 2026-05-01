@@ -87,21 +87,10 @@ class Strava_Stories_Widget {
 
 				<footer class="strava-stories-widget__footer">
 					<span class="strava-stories-widget__pager" aria-live="polite"></span>
-					<div class="strava-stories-widget__actions">
-						<button type="button" class="button button-link strava-stories-widget__hide" disabled>
-							<?php esc_html_e( 'Hide', 'strava-stories' ); ?>
-						</button>
-						<button type="button" class="button button-primary strava-stories-widget__blog" disabled>
-							<?php esc_html_e( 'Create draft', 'strava-stories' ); ?>
-						</button>
-					</div>
-				</footer>
-				<div class="strava-stories-widget__notice" role="status" aria-live="polite" hidden>
-					<span class="strava-stories-widget__notice-text"></span>
-					<button type="button" class="button-link strava-stories-widget__undo">
-						<?php esc_html_e( 'Undo', 'strava-stories' ); ?>
+					<button type="button" class="button button-primary strava-stories-widget__blog" disabled>
+						<?php esc_html_e( 'Create draft', 'strava-stories' ); ?>
 					</button>
-				</div>
+				</footer>
 			<?php endif; ?>
 		</div>
 		<?php

@@ -37,32 +37,16 @@ class Strava_Stories_Rest {
 			self::NAMESPACE,
 			'/ignore',
 			array(
-				array(
-					'methods'             => 'POST',
-					'callback'            => array( __CLASS__, 'ignore_activity' ),
-					'permission_callback' => array( __CLASS__, 'can_use' ),
-					'args'                => array(
-						'activity_id' => array(
-							'required'          => true,
-							'sanitize_callback' => static function ( $value ) {
-								$s = is_scalar( $value ) ? (string) $value : '';
-								return ctype_digit( $s ) ? $s : '';
-							},
-						),
-					),
-				),
-				array(
-					'methods'             => 'DELETE',
-					'callback'            => array( __CLASS__, 'unignore_activity' ),
-					'permission_callback' => array( __CLASS__, 'can_use' ),
-					'args'                => array(
-						'activity_id' => array(
-							'required'          => true,
-							'sanitize_callback' => static function ( $value ) {
-								$s = is_scalar( $value ) ? (string) $value : '';
-								return ctype_digit( $s ) ? $s : '';
-							},
-						),
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'ignore_activity' ),
+				'permission_callback' => array( __CLASS__, 'can_use' ),
+				'args'                => array(
+					'activity_id' => array(
+						'required'          => true,
+						'sanitize_callback' => static function ( $value ) {
+							$s = is_scalar( $value ) ? (string) $value : '';
+							return ctype_digit( $s ) ? $s : '';
+						},
 					),
 				),
 			)
@@ -323,22 +307,6 @@ class Strava_Stories_Rest {
 		$ids     = self::ignored_activity_ids( $user_id );
 		$ids[ $activity_id ] = true;
 		update_user_meta( $user_id, self::IGNORED_META_KEY, array_keys( $ids ) );
-		return new WP_REST_Response( array( 'ok' => true ), 200 );
-	}
-
-	public static function unignore_activity( WP_REST_Request $request ): WP_REST_Response {
-		$activity_id = (string) $request->get_param( 'activity_id' );
-		if ( $activity_id === '' || ! ctype_digit( $activity_id ) ) {
-			return new WP_REST_Response( array( 'ok' => false, 'error' => 'invalid_activity' ), 400 );
-		}
-		$user_id = get_current_user_id();
-		$ids     = self::ignored_activity_ids( $user_id );
-		unset( $ids[ $activity_id ] );
-		if ( empty( $ids ) ) {
-			delete_user_meta( $user_id, self::IGNORED_META_KEY );
-		} else {
-			update_user_meta( $user_id, self::IGNORED_META_KEY, array_keys( $ids ) );
-		}
 		return new WP_REST_Response( array( 'ok' => true ), 200 );
 	}
 

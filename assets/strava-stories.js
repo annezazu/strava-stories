@@ -38,13 +38,6 @@
 	const next       = root.querySelector( '.strava-stories-widget__nav--next' );
 	const pager      = root.querySelector( '.strava-stories-widget__pager' );
 	const blog       = root.querySelector( '.strava-stories-widget__blog' );
-	const hide       = root.querySelector( '.strava-stories-widget__hide' );
-	const notice     = root.querySelector( '.strava-stories-widget__notice' );
-	const noticeText = root.querySelector( '.strava-stories-widget__notice-text' );
-	const undo       = root.querySelector( '.strava-stories-widget__undo' );
-
-	let undoTimer = null;
-	let undoState = null;
 
 	let activities = [];
 	let index      = 0;
@@ -195,6 +188,14 @@
 		const card = document.createElement( 'article' );
 		card.className = 'strava-stories-widget__card';
 
+		const dismiss = document.createElement( 'button' );
+		dismiss.type = 'button';
+		dismiss.className = 'strava-stories-widget__dismiss';
+		dismiss.setAttribute( 'aria-label', __( 'Hide this activity' ) );
+		dismiss.innerHTML = '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
+		dismiss.addEventListener( 'click', function () { hideActivity( activity ); } );
+		card.appendChild( dismiss );
+
 		const header = document.createElement( 'header' );
 		header.className = 'strava-stories-widget__card-header';
 		const title = document.createElement( 'h4' );
@@ -258,14 +259,12 @@
 			prev.disabled = true;
 			next.disabled = true;
 			blog.disabled = true;
-			hide.disabled = true;
 			pager.textContent = '';
 			return;
 		}
 		prev.disabled = index <= 0;
 		next.disabled = index >= activities.length - 1;
 		blog.disabled = false;
-		hide.disabled = false;
 		pager.textContent = sprintf( __( '%1$d of %2$d' ), index + 1, activities.length );
 	}
 
@@ -301,27 +300,11 @@
 	prev.addEventListener( 'click', function () { show( index - 1 ); } );
 	next.addEventListener( 'click', function () { show( index + 1 ); } );
 
-	function clearNotice() {
-		if ( undoTimer ) { window.clearTimeout( undoTimer ); undoTimer = null; }
-		undoState = null;
-		notice.hidden = true;
-		noticeText.textContent = '';
-	}
+	function hideActivity( activity ) {
+		const at = activities.indexOf( activity );
+		if ( at < 0 ) { return; }
 
-	function showNotice( message ) {
-		noticeText.textContent = message;
-		notice.hidden = false;
-		if ( undoTimer ) { window.clearTimeout( undoTimer ); }
-		undoTimer = window.setTimeout( clearNotice, 8000 );
-	}
-
-	hide.addEventListener( 'click', function () {
-		if ( ! activities.length ) { return; }
-		const removed   = activities[ index ];
-		const removedAt = index;
-
-		// Optimistic update — drop locally so the list shrinks immediately.
-		activities.splice( index, 1 );
+		activities.splice( at, 1 );
 		if ( index >= activities.length ) {
 			index = Math.max( 0, activities.length - 1 );
 		}
@@ -332,29 +315,11 @@
 			updateChrome();
 		}
 
-		undoState = { activity: removed, at: removedAt };
-		showNotice( sprintf( __( 'Hidden “%1$s”.' ), removed.name || removed.sport_label ) );
-
-		request( 'POST', 'ignore', { activity_id: removed.id } ).catch( function () {
+		request( 'POST', 'ignore', { activity_id: activity.id } ).catch( function () {
 			// If the server didn't accept it, the next reload will bring the
 			// activity back — no need to disrupt the current view.
 		} );
-	} );
-
-	undo.addEventListener( 'click', function () {
-		if ( ! undoState ) { return; }
-		const restored = undoState;
-		clearNotice();
-		request( 'DELETE', 'ignore', { activity_id: restored.activity.id } ).then( function () {
-			const at = Math.min( restored.at, activities.length );
-			activities.splice( at, 0, restored.activity );
-			index = at;
-			if ( stage.dataset.state === 'empty' ) { stage.innerHTML = ''; }
-			show( index );
-		} ).catch( function () {
-			showError( __( 'Could not restore activity.' ) );
-		} );
-	} );
+	}
 
 	root.addEventListener( 'keydown', function ( ev ) {
 		if ( ev.target.tagName === 'IFRAME' || ev.target.tagName === 'INPUT' ) { return; }
