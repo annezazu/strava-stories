@@ -485,8 +485,10 @@ class Strava_Stories_Rest {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
 		$attachments = array();
+		$index       = 0;
 		foreach ( $photos as $p ) {
-			$id = self::sideload_photo( (string) $p['url'], (string) ( $p['caption'] ?? '' ), $alt_text );
+			++$index;
+			$id = self::sideload_photo( (string) $p['url'], (string) ( $p['caption'] ?? '' ), $alt_text, $alt_text, $index );
 			if ( is_wp_error( $id ) || $id === 0 ) {
 				continue;
 			}
@@ -540,7 +542,7 @@ class Strava_Stories_Rest {
 	 *
 	 * @return int|WP_Error Attachment ID on success.
 	 */
-	private static function sideload_photo( string $url, string $caption, string $alt_text ) {
+	private static function sideload_photo( string $url, string $caption, string $alt_text, string $activity_title = '', int $index = 0 ) {
 		if ( $url === '' ) {
 			return 0;
 		}
@@ -549,10 +551,13 @@ class Strava_Stories_Rest {
 			return $tmp;
 		}
 
-		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-		$name = basename( $path );
-		// Strava CloudFront URLs sometimes lack an extension; sniff and append.
-		if ( ! preg_match( '/\.(jpe?g|png|gif|webp|heic|heif)$/i', $name ) ) {
+		$path          = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$original_name = basename( $path );
+		// Pull the extension from the URL when possible; otherwise sniff from the file.
+		$ext = '';
+		if ( preg_match( '/\.(jpe?g|png|gif|webp|heic|heif)$/i', $original_name, $m ) ) {
+			$ext = '.' . strtolower( $m[1] );
+		} else {
 			$mime = mime_content_type( $tmp ) ?: 'image/jpeg';
 			$ext  = array(
 				'image/jpeg' => '.jpg',
@@ -560,8 +565,15 @@ class Strava_Stories_Rest {
 				'image/gif'  => '.gif',
 				'image/webp' => '.webp',
 			)[ $mime ] ?? '.jpg';
-			$name = ( $name !== '' ? $name : 'strava-photo' ) . $ext;
 		}
+
+		$slug = sanitize_title( $activity_title );
+		if ( $slug === '' ) {
+			$slug = 'strava-activity';
+		}
+		$name = $index > 0
+			? sprintf( '%s-%d%s', $slug, $index, $ext )
+			: $slug . $ext;
 
 		$file_array = array( 'name' => $name, 'tmp_name' => $tmp );
 		$id         = media_handle_sideload( $file_array, 0 );
