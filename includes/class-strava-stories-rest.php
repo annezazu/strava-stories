@@ -63,7 +63,11 @@ class Strava_Stories_Rest {
 			return new WP_REST_Response( array( 'ok' => false, 'error' => 'not_connected' ), 403 );
 		}
 
-		$activities = $client->get_recent_activities( $user_id, 5 );
+		// Fetch a larger window so that as activities get drafted (and filtered
+		// out below), more recent ones backfill the visible list rather than
+		// shrinking it toward empty. We display up to DISPLAY_LIMIT after the
+		// drafted filter.
+		$activities = $client->get_recent_activities( $user_id, 15 );
 		if ( is_wp_error( $activities ) ) {
 			return new WP_REST_Response(
 				array( 'ok' => false, 'error' => $activities->get_error_message() ),
@@ -83,6 +87,8 @@ class Strava_Stories_Rest {
 				)
 			);
 		}
+
+		$activities = array_slice( $activities, 0, 5 );
 
 		// Strava's listing endpoint sometimes omits `embed_token`. Backfill via
 		// the detail endpoint for activities without one, capped to avoid a
