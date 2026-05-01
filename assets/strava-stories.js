@@ -33,11 +33,11 @@
 		return;
 	}
 
-	const stage  = root.querySelector( '.strava-stories-widget__stage' );
-	const prev   = root.querySelector( '.strava-stories-widget__nav--prev' );
-	const next   = root.querySelector( '.strava-stories-widget__nav--next' );
-	const pager  = root.querySelector( '.strava-stories-widget__pager' );
-	const blog   = root.querySelector( '.strava-stories-widget__blog' );
+	const stage      = root.querySelector( '.strava-stories-widget__stage' );
+	const prev       = root.querySelector( '.strava-stories-widget__nav--prev' );
+	const next       = root.querySelector( '.strava-stories-widget__nav--next' );
+	const pager      = root.querySelector( '.strava-stories-widget__pager' );
+	const blog       = root.querySelector( '.strava-stories-widget__blog' );
 
 	let activities = [];
 	let index      = 0;
@@ -188,6 +188,14 @@
 		const card = document.createElement( 'article' );
 		card.className = 'strava-stories-widget__card';
 
+		const dismiss = document.createElement( 'button' );
+		dismiss.type = 'button';
+		dismiss.className = 'strava-stories-widget__dismiss';
+		dismiss.setAttribute( 'aria-label', __( 'Hide this activity' ) );
+		dismiss.innerHTML = '<span class="dashicons dashicons-no-alt" aria-hidden="true"></span>';
+		dismiss.addEventListener( 'click', function () { hideActivity( activity ); } );
+		card.appendChild( dismiss );
+
 		const header = document.createElement( 'header' );
 		header.className = 'strava-stories-widget__card-header';
 		const title = document.createElement( 'h4' );
@@ -291,6 +299,27 @@
 
 	prev.addEventListener( 'click', function () { show( index - 1 ); } );
 	next.addEventListener( 'click', function () { show( index + 1 ); } );
+
+	function hideActivity( activity ) {
+		const at = activities.indexOf( activity );
+		if ( at < 0 ) { return; }
+
+		activities.splice( at, 1 );
+		if ( index >= activities.length ) {
+			index = Math.max( 0, activities.length - 1 );
+		}
+		if ( activities.length ) {
+			show( index );
+		} else {
+			showEmpty();
+			updateChrome();
+		}
+
+		request( 'POST', 'ignore', { activity_id: activity.id } ).catch( function () {
+			// If the server didn't accept it, the next reload will bring the
+			// activity back — no need to disrupt the current view.
+		} );
+	}
 
 	root.addEventListener( 'keydown', function ( ev ) {
 		if ( ev.target.tagName === 'IFRAME' || ev.target.tagName === 'INPUT' ) { return; }
